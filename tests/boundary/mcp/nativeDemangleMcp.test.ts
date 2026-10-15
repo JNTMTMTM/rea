@@ -78,6 +78,26 @@ describe.skipIf(process.platform !== "darwin")(
         // only manglings every supported demangler decodes are expected valid.
         const decodable = ["_T0", "$S", "_$S"];
         const prefixes = [...decodable, "$e", "_$e"];
+        const normalized = [
+          { input: "__T0Bogus", output: "_T0Bogus", status: "invalid" },
+          { input: "__T04main3FooV", output: "main.Foo", status: "demangled" },
+          { input: "_$s4main3FooV", output: "main.Foo", status: "demangled" },
+          { input: "$s4main3FooV", output: "main.Foo", status: "demangled" },
+          { input: "$sBogus", output: "$sBogus", status: "invalid" },
+          { input: "sBogus", output: "$sBogus", status: "invalid" },
+          { input: "s4main3FooV", output: "main.Foo", status: "demangled" },
+          {
+            input: "plain_symbol",
+            output: "plain_symbol",
+            status: "unchanged",
+          },
+          { input: "_printf", output: "_printf", status: "unchanged" },
+          {
+            input: "__plain_symbol",
+            output: "_plain_symbol",
+            status: "unchanged",
+          },
+        ];
 
         const called = await client.callTool({
           name: "demangle_swift",
@@ -86,19 +106,21 @@ describe.skipIf(process.platform !== "darwin")(
               ...decodable.map((prefix) => `${prefix}4main3FooV`),
               ...prefixes.map((prefix) => `${prefix}Bogus`),
               "_Tprintf",
+              ...normalized.map(({ input }) => input),
             ],
           },
         });
         expect(called.isError, JSON.stringify(called.content)).not.toBe(true);
-        expect(
-          demangledSchema
-            .parse(called.structuredContent)
-            .normalized_result.symbols.map(({ status }) => status),
-        ).toEqual([
+        const { symbols } = demangledSchema.parse(
+          called.structuredContent,
+        ).normalized_result;
+        expect(symbols.map(({ status }) => status)).toEqual([
           ...decodable.map(() => "demangled"),
           ...prefixes.map(() => "invalid"),
           "unchanged",
+          ...normalized.map(({ status }) => status),
         ]);
+        expect(symbols.slice(-normalized.length)).toEqual(normalized);
       },
     );
   },

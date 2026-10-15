@@ -18,7 +18,45 @@ const evidenceTarget = async () => {
   return path;
 };
 
-describe("Swift demangling CLI with line-terminator characters", () => {
+describe("Swift demangling CLI", () => {
+  cliTest.skipIf(process.platform !== "darwin")(
+    "distinguishes normalized echoes from decoded linked and unlinked symbols",
+    async ({ cli }) => {
+      const records = [
+        { input: "__T0Bogus", output: "_T0Bogus", status: "invalid" },
+        { input: "_T0Bogus", output: "_T0Bogus", status: "invalid" },
+        { input: "__T04main3FooV", output: "main.Foo", status: "demangled" },
+        { input: "_T04main3FooV", output: "main.Foo", status: "demangled" },
+        { input: "_$s4main3FooV", output: "main.Foo", status: "demangled" },
+        { input: "$s4main3FooV", output: "main.Foo", status: "demangled" },
+        { input: "$sBogus", output: "$sBogus", status: "invalid" },
+        { input: "sBogus", output: "$sBogus", status: "invalid" },
+        { input: "s4main3FooV", output: "main.Foo", status: "demangled" },
+        { input: "plain_symbol", output: "plain_symbol", status: "unchanged" },
+        { input: "_printf", output: "_printf", status: "unchanged" },
+        {
+          input: "__plain_symbol",
+          output: "_plain_symbol",
+          status: "unchanged",
+        },
+      ];
+      const result = await cli.run({
+        arguments: [
+          "demangle-swift",
+          await evidenceTarget(),
+          ...records.map(({ input }) => input),
+          "--json",
+        ],
+        environment,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.signal).toBeNull();
+      expect(result.json).toMatchObject({
+        normalized_result: { symbols: records },
+      });
+    },
+  );
+
   cliTest.skipIf(process.platform !== "darwin")(
     "keeps a carriage return in the symbol",
     async ({ cli }) => {

@@ -81,6 +81,25 @@ describe("parseDemangledSymbols", () => {
     ]);
   });
 
+  it("distinguishes command-normalized echoes from decoded names", () => {
+    const records = [
+      { input: "__T0Bogus", output: "_T0Bogus", status: "invalid" },
+      { input: "__T04main3FooV", output: "main.Foo", status: "demangled" },
+      { input: "__plain_symbol", output: "_plain_symbol", status: "unchanged" },
+      { input: "___T0Bogus", output: "__T0Bogus", status: "unchanged" },
+      { input: "sBogus", output: "$sBogus", status: "invalid" },
+      { input: "SBogus", output: "$SBogus", status: "invalid" },
+      { input: "eBogus", output: "$eBogus", status: "invalid" },
+      { input: "s4main3FooV", output: "main.Foo", status: "demangled" },
+    ];
+    expect(
+      parseDemangledSymbols(
+        records.map(({ input }) => input),
+        `${records.map(({ output }) => output).join("\n")}\n`,
+      ),
+    ).toEqual(records);
+  });
+
   it("throws TypeError when output count does not match input count", () => {
     expect(() =>
       parseDemangledSymbols(["sym1", "sym2"], "demangled1\n"),

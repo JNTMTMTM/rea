@@ -30,12 +30,20 @@ export const parseDemangledSymbols = (
     const value = lines[index];
     if (value === undefined)
       throw new TypeError("swift-demangle omitted an output line");
+    // The command strips one underscore from `__…` and supplies `$` for bare
+    // S/s/e prefixes before decoding. An echo of that spelling is not a decode.
+    // Keep this command-specific normalization here, not in symbol identity.
+    const demanglerInput = input.startsWith("__")
+      ? input.slice(1)
+      : /^[Sse]/u.test(input)
+        ? `$${input}`
+        : input;
     return resultSchema.parse({
       input,
       output: value,
       status:
-        value === input
-          ? isSwiftMangledSymbolName(input)
+        value === input || value === demanglerInput
+          ? isSwiftMangledSymbolName(demanglerInput)
             ? "invalid"
             : "unchanged"
           : "demangled",
